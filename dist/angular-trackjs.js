@@ -1,7 +1,7 @@
 /*!
  * Angular TrackJs v0.1.0
  *
- * © 2015, Jamie Le Souef <jamielesouef@gmail.com>
+ * © 2016, Jamie Le Souef <jamielesouef@gmail.com>
  */
 
 (function (angular) {
@@ -49,52 +49,52 @@
             $window.trackJs.track(message);
         };
 
-        var ignore = function (list) {
-            ignoreErrorList = ignoreErrorList.concat(list);
+        var onError = function (payload) {
 
-            var onError = function (payload) {
+            var test = function (what, where) {
+                return (what instanceof RegExp) ? what.test(where) : what === where;
+            };
 
-                var test = function (what, where) {
-                    return (what instanceof RegExp) ? what.test(where) : what === where;
-                };
-
-                var checkNetwork = function (expectedValue, networkProperty) {
-                    return payload.network
-                        .map(function (request) {
-                            return test(expectedValue, request[networkProperty]);
-                        })
-                        .some(function (error) {
-                            return test(error, true);
-                        });
-                };
-
-                var validateError = function (errorCheck) {
-
-                    var errorMatch = [];
-
-                    for (var property in errorCheck) {
-                        var expectedValue = errorCheck[property];
-
-                        if (property === 'pageUrl') {
-                            errorMatch.push(test(expectedValue, payload.url));
-                        } else if (property === 'message') {
-                            errorMatch.push(test(errorCheck.message, payload.message));
-                        } else {
-                            errorMatch.push(checkNetwork(expectedValue, property));
-                        }
-                    }
-
-                    errorMatch = errorMatch.every(function (error) {
+            var checkNetwork = function (expectedValue, networkProperty) {
+                return payload.network
+                    .map(function (request) {
+                        return test(expectedValue, request[networkProperty]);
+                    })
+                    .some(function (error) {
                         return test(error, true);
                     });
+            };
 
-                    return errorMatch;
-                };
+            var validateError = function (errorCheck) {
 
-                return !ignoreErrorList.map(validateError).some(function (error) {
+                var errorMatch = [];
+
+                for (var property in errorCheck) {
+                    var expectedValue = errorCheck[property];
+
+                    if (property === 'pageUrl') {
+                        errorMatch.push(test(expectedValue, payload.url));
+                    } else if (property === 'message') {
+                        errorMatch.push(test(errorCheck.message, payload.message));
+                    } else {
+                        errorMatch.push(checkNetwork(expectedValue, property));
+                    }
+                }
+
+                errorMatch = errorMatch.every(function (error) {
                     return test(error, true);
                 });
+
+                return errorMatch;
             };
+
+            return !ignoreErrorList.map(validateError).some(function (error) {
+                return test(error, true);
+            });
+        };
+
+        var ignore = function (list) {
+            ignoreErrorList = ignoreErrorList.concat(list);
 
             this.configure({
                 onError: onError
@@ -104,7 +104,8 @@
         return {
             track: track,
             ignore: ignore,
-            configure: configure($window)
+            configure: configure($window),
+            onError: onError
         };
     }]);
 
